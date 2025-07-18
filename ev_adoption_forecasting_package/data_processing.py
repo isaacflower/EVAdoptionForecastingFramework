@@ -19,6 +19,7 @@ class LSOAVehicleRegistrationDataProcessor:
     
     def load_data(self, raw_data_path: str, meta_data: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Loads raw vehicle and EV registration data from disk based on metadata describing file structure."""
+        print('Loading data...')
         for vehicle_type, details in meta_data.items():
             file_path = os.path.join(raw_data_path, details['file_name'])
             print(f"Loading {vehicle_type} data from {file_path}")
@@ -30,6 +31,7 @@ class LSOAVehicleRegistrationDataProcessor:
     
     def filter_data(self, filters_dict: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """Filters raw registration datasets using custom query/filter instructions and prepares them for processing."""
+        print('Filtering data...')
         if self.v_reg_df_raw is None or self.ev_reg_df_raw is None:
             raise ValueError('Raw data not loaded. Please load raw data first.')
 
@@ -52,6 +54,7 @@ class LSOAVehicleRegistrationDataProcessor:
     
     def process_data(self, t_0: int, t_n: int) -> None:
         """Processes the filtered datasets: aligns structures, fills missing data, interpolates values, and prepares annualised outputs."""
+        print('Processing data...')
         self._align_ev_reg_dfs_to_v_reg()
         self._fill_missing_private_ev_data()
         self._interpolate_missing_data()
@@ -65,6 +68,7 @@ class LSOAVehicleRegistrationDataProcessor:
 
     def filter_by_lads(self, lad_list: list):
         """Extracts data for specific Local Authority Districts (LADs) using the LSOA lookup table."""
+        print('Filtering data by LADs...')
         lad_lsoa_dict = {}
         for lad in lad_list:
             lad_lsoa_sub_dict = {}
