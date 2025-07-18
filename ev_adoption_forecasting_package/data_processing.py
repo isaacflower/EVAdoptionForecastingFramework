@@ -18,7 +18,43 @@ class LSOAVehicleRegistrationDataProcessor:
     # === Core Methods ===
     
     def load_data(self, raw_data_path: str, meta_data: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Loads raw vehicle and EV registration data from disk based on metadata describing file structure."""
+        """
+        Load raw vehicle and EV registration data from disk using metadata that describes file structure.
+
+        Parameters
+        ----------
+        raw_data_path : str
+            Path to the directory containing the raw registration data files.
+
+        meta_data : dict
+            Dictionary specifying the metadata required to parse each CSV file. Keys are data labels 
+            (e.g., 'v', 'ev') and values are dictionaries with the following fields:
+                - 'file_name': str
+                    The name of the CSV file (within `raw_data_path`) to load.
+                - 'first': int
+                    Index of the first column to load.
+                - 'last': int
+                    Index of the last column to load.
+                - 'na_values': list of str
+                    Strings to be interpreted as missing values in the CSV (e.g., ['[c]', '[x]']).
+        
+        Example
+        -------
+        meta_data = {
+            'v': {
+                'file_name': 'df_VEH0125_2023_Q4.csv',
+                'first': 5,
+                'last': 57,
+                'na_values': ['[c]', '[x]']
+            },
+            'ev': {
+                'file_name': 'df_VEH0145_2023_Q4.csv',
+                'first': 5,
+                'last': 56,
+                'na_values': ['[c]', '[x]']
+            }
+        }
+        """
         print('Loading data...')
         for vehicle_type, details in meta_data.items():
             file_path = os.path.join(raw_data_path, details['file_name'])
@@ -30,7 +66,32 @@ class LSOAVehicleRegistrationDataProcessor:
         return self.v_reg_df_raw, self.ev_reg_df_raw
     
     def filter_data(self, filters_dict: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        """Filters raw registration datasets using custom query/filter instructions and prepares them for processing."""
+        """
+        Filters raw registration datasets using custom query/filter instructions and prepares them for processing.
+
+        Parameters
+        ----------
+        filters_dict : dict
+            Dictionary specifying filtering rules for each dataset. Keys correspond to output dataset 
+            names (e.g., 'v', 'ev_private', etc.) and values are dictionaries with:
+                - 'query': str
+                    A pandas-compatible query string to filter rows.
+                - 'dropped_cols': list of str
+                    List of column names to drop from the dataset after filtering.
+
+        Example
+        -------
+        filters_dict = {
+            'v': {
+                'query': "BodyType == 'Cars' and Keepership == 'Private' and LicenceStatus == 'Licensed'",
+                'dropped_cols': ['BodyType', 'Keepership', 'LicenceStatus', 'LSOA11NM']
+            },
+            'ev_private': {
+                'query': "Fuel == 'Total' & Keepership == 'Private'",
+                'dropped_cols': ['Fuel', 'Keepership', 'LSOA11NM'] 
+            }
+        }
+        """
         print('Filtering data...')
         if self.v_reg_df_raw is None or self.ev_reg_df_raw is None:
             raise ValueError('Raw data not loaded. Please load raw data first.')
@@ -53,7 +114,17 @@ class LSOAVehicleRegistrationDataProcessor:
         return self.v_reg_df, self.ev_reg_private_df, self.ev_reg_company_df, self.ev_reg_total_df
     
     def process_data(self, t_0: int, t_n: int) -> None:
-        """Processes the filtered datasets: aligns structures, fills missing data, interpolates values, and prepares annualised outputs."""
+        """
+        Processes the filtered datasets: aligns structures, fills missing data, interpolates values, and prepares annualised outputs.
+
+        Parameters
+        ----------
+        t_0 : int
+            The starting year of the time series (e.g., 2011).
+
+        t_n : int
+            The ending year of the time series (e.g., 2023).
+        """
         print('Processing data...')
         self._align_ev_reg_dfs_to_v_reg()
         self._fill_missing_private_ev_data()
@@ -67,7 +138,23 @@ class LSOAVehicleRegistrationDataProcessor:
         self.annual_data_dict['ev_ms'] = self.annual_data_dict['ev'] / self.annual_data_dict['v']
 
     def filter_by_lads(self, lad_list: list):
-        """Extracts data for specific Local Authority Districts (LADs) using the LSOA lookup table."""
+        """
+        Extracts data for specific Local Authority Districts (LADs) using the LSOA lookup table.
+
+        Parameters
+        ----------
+        lad_list : list of str
+            List of LAD names (e.g., from self.lsoa_lookup['LAD22NM'].unique()) to include.
+
+        Returns
+        -------
+        dict of str to list of str
+            Dictionary mapping each LAD name to the list of LSOA codes it contains.
+
+        Example
+        -------
+        lad_list = ['Bath and North East Somerset', 'Bristol']
+        """
         print('Filtering data by LADs...')
         lad_lsoa_dict = {}
         for lad in lad_list:
@@ -217,4 +304,18 @@ class LSOAVehicleRegistrationDataProcessor:
             lad_data_dict[key] = df.loc[:, df.columns.intersection(lad_lsoa_ids)]
         return lad_data_dict
     
+class LADVehicleRegistrationDataProcessor:
+    def __init__(self):
+        pass
 
+    def load_data(self):
+        pass
+    
+    def filter_data(self):
+        pass
+
+    def process_data(self):
+        pass
+
+    def save_data(self):
+        pass
