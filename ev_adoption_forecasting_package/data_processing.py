@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import os
+from typing import Optional
 
 class LSOAVehicleRegistrationDataProcessor:
     def __init__(self, lsoa_lookup_path: str):
@@ -16,7 +17,7 @@ class LSOAVehicleRegistrationDataProcessor:
 
     # === Core Methods ===
     
-    def load_data(self, raw_data_path: str, meta_data: dict):
+    def load_data(self, raw_data_path: str, meta_data: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Loads raw vehicle and EV registration data from disk based on metadata describing file structure."""
         for vehicle_type, details in meta_data.items():
             file_path = os.path.join(raw_data_path, details['file_name'])
@@ -27,23 +28,26 @@ class LSOAVehicleRegistrationDataProcessor:
                 self.ev_reg_df_raw = self._load_csv(file_path, details)
         return self.v_reg_df_raw, self.ev_reg_df_raw
     
-    def filter_data(self, filters_dict: dict) -> pd.DataFrame:
+    def filter_data(self, filters_dict: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """Filters raw registration datasets using custom query/filter instructions and prepares them for processing."""
         if self.v_reg_df_raw is None or self.ev_reg_df_raw is None:
             raise ValueError('Raw data not loaded. Please load raw data first.')
+
+        vehicle_map = {
+            'v': (self.v_reg_df_raw, 'v_reg_df'),
+            'ev_private': (self.ev_reg_df_raw, 'ev_reg_private_df'),
+            'ev_company': (self.ev_reg_df_raw, 'ev_reg_company_df'),
+            'ev_total': (self.ev_reg_df_raw, 'ev_reg_total_df'),
+        }
+
         for vehicle_type, filters in filters_dict.items():
-            if vehicle_type == 'v':
-                v_reg_df = self._filter_dataframe(self.v_reg_df_raw, filters)
-                self.v_reg_df = v_reg_df[~v_reg_df.index.duplicated(keep='first')].T.iloc[::-1].astype(float)
-            elif vehicle_type == 'ev_private':
-                ev_reg_private_df = self._filter_dataframe(self.ev_reg_df_raw, filters)
-                self.ev_reg_private_df = ev_reg_private_df[~ev_reg_private_df.index.duplicated(keep='first')].T.iloc[::-1].astype(float)
-            elif vehicle_type == 'ev_company':
-                ev_reg_company_df = self._filter_dataframe(self.ev_reg_df_raw, filters)
-                self.ev_reg_company_df = ev_reg_company_df[~ev_reg_company_df.index.duplicated(keep='first')].T.iloc[::-1].astype(float)
-            elif vehicle_type == 'ev_total':
-                ev_reg_total_df = self._filter_dataframe(self.ev_reg_df_raw, filters)
-                self.ev_reg_total_df = ev_reg_total_df[~ev_reg_total_df.index.duplicated(keep='first')].T.iloc[::-1].astype(float)
+            if vehicle_type not in vehicle_map:
+                continue
+            source_df, target_attr = vehicle_map[vehicle_type]
+            filtered = self._filter_dataframe(source_df, filters)
+            cleaned = filtered[~filtered.index.duplicated(keep='first')].T.iloc[::-1].astype(float)
+            setattr(self, target_attr, cleaned)
+
         return self.v_reg_df, self.ev_reg_private_df, self.ev_reg_company_df, self.ev_reg_total_df
     
     def process_data(self, t_0: int, t_n: int) -> None:
@@ -56,17 +60,19 @@ class LSOAVehicleRegistrationDataProcessor:
             'ev': self.ev_reg_df,
         }
         self.data_dict = {k: df.set_index(df.index.map(self._convert_quarter_index_to_float)) for k, df in self.data_dict.items()}
-        self.annual_data_dict = {k: self._annualise_data_last(df) for k, df in self.data_dict.items()}
-        self.annual_data_dict = {k: self._select_date_range(df, t_0, t_n) for k, df in self.annual_data_dict.items()}
-        self.annual_data_dict['ev_ms'] = self._calculate_market_share(self.annual_data_dict['ev'], self.annual_data_dict['v'])
-    
-    def filter_by_lad(self, LAD: str) -> dict:
-        """Extracts data for a specific Local Authority District (LAD) using the LSOA lookup table."""
-        lad_data_dict = {}
-        lad_lsoa_ids = self.lsoa_lookup.loc[self.lsoa_lookup['LAD22NM'] == LAD, 'LSOA11CD'].tolist()
-        for key, df in self.annual_data_dict.items():
-            lad_data_dict[key] = df.loc[:, df.columns.intersection(lad_lsoa_ids)]
-        return lad_data_dict
+        self.annual_data_dict = {k: self._annualise_data_last(df).loc[t_0:t_n] for k, df in self.data_dict.items()}
+        self.annual_data_dict['ev_ms'] = self.annual_data_dict['ev'] / self.annual_data_dict['v']
+
+    def filter_by_lads(self, lad_list: list):
+        """Extracts data for specific Local Authority Districts (LADs) using the LSOA lookup table."""
+        lad_lsoa_dict = {}
+        for lad in lad_list:
+            lad_lsoa_sub_dict = {}
+            for key in self.annual_data_dict.keys():
+                dict = self._filter_by_lad(LAD=lad)
+                lad_lsoa_sub_dict[key] = dict[key]
+            lad_lsoa_dict[lad] = lad_lsoa_sub_dict
+        return lad_lsoa_dict
 
     def save_data(self, save_path: str, year_quarter: str):
         """Saves the processed and annualised datasets to disk, organized by type and quarter."""
@@ -170,16 +176,7 @@ class LSOAVehicleRegistrationDataProcessor:
         return np.linspace(t0, t1, int((t1-t0)*sample_rate) + 1)
     
     def _calculate_time_index(self, data: pd.Series | pd.DataFrame, position: str = 'start') -> float:
-        """
-        Returns a float representing the time index from a quarterly datetime index string.
-        
-        Parameters:
-            data (pd.Series or pd.DataFrame): Input data with a quarterly datetime index (e.g., '2011Q2').
-            position (str): 'start' to get the first date, 'end' to get the last date.
-        
-        Returns:
-            float: Time index as year + fraction (e.g., 2011.25 for Q2 of 2011)
-        """
+        """Returns a float representing the time index from a quarterly datetime index string."""
         if position == 'start':
             index_str = data.index[0]
         elif position == 'end':
@@ -208,8 +205,12 @@ class LSOAVehicleRegistrationDataProcessor:
         df['Year'] = df.index.astype(int)
         return df.groupby('Year').last()
     
-    def _select_date_range(self, df: pd.DataFrame, t_0: int, t_n: int) -> pd.DataFrame:
-        return df.loc[t_0:t_n]
+    def _filter_by_lad(self, LAD: str) -> dict:
+        """Extracts data for a specific Local Authority District (LAD) using the LSOA lookup table."""
+        lad_data_dict = {}
+        lad_lsoa_ids = self.lsoa_lookup.loc[self.lsoa_lookup['LAD22NM'] == LAD, 'LSOA11CD'].tolist()
+        for key, df in self.annual_data_dict.items():
+            lad_data_dict[key] = df.loc[:, df.columns.intersection(lad_lsoa_ids)]
+        return lad_data_dict
     
-    def _calculate_market_share(self, df: pd.DataFrame, total: pd.DataFrame) -> pd.DataFrame:
-        return (df / total)
+
