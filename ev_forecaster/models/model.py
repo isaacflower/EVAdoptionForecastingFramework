@@ -45,7 +45,7 @@ class GPForecastingModel:
     
     # === Core Methods ===
 
-    def load_data(self, data: pd.Series, area_id: str, regional_data: pd.Series, future_regional_data: dict):
+    def load_data(self, data: pd.Series, area_id: str, regional_data: pd.Series, future_regional_data: dict| None = None):
         self.area_id = area_id
         self.data = data.copy()
         masked = self._mask_zeros(self.data)
@@ -156,8 +156,10 @@ class GPForecastingModel:
 
     # === Internal Helper Methods === 
 
-    def _create_regional_scenario(self, regional_data: pd.Series, future_regional_data: dict) -> pd.Series:
-        return pd.concat([regional_data, pd.Series(future_regional_data)])
+    def _create_regional_scenario(self, regional_data: pd.Series, future_regional_data: dict | None) -> pd.Series:
+        if future_regional_data is not None:
+            return pd.concat([regional_data, pd.Series(future_regional_data)])
+        return regional_data
     
     def _prepare_mean_function(self):
         self.spl = self._fit_spline(self.regional_scenario)
