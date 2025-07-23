@@ -2,7 +2,7 @@ import gpflow
 import tensorflow as tf
 import numpy as np
 from scipy.interpolate import make_smoothing_spline
-from ev_adoption_forecasting_package.transforms import probit
+from ev_forecaster.model_utils.transforms import probit
 
 class Spline():
     def __init__(self, X_train, Y_train) -> None:

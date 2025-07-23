@@ -1,6 +1,6 @@
 # Import modules
-from ev_adoption_forecasting_package.mean_function import CustomMeanFunction, Spline
-from ev_adoption_forecasting_package.transforms import probit, invprobit
+from ev_forecaster.model_utils.mean_function import CustomMeanFunction, Spline
+from ev_forecaster.model_utils.transforms import probit, invprobit
 
 # Data
 import pandas as pd
@@ -15,8 +15,12 @@ import seaborn as sns
 sns.set_style('white')
 sns.set_context("paper")
 
+# Progress Bars
+from tqdm.notebook import tqdm
+
 # Gaussian Processes
 import gpflow
+import tensorflow as tf
 gpflow.config.set_default_float(np.float64)
 gpflow.config.set_default_summary_fmt("notebook")
 f64 = gpflow.utilities.to_default_float # convert to float64 for tfp to play nicely with gpflow
@@ -28,7 +32,7 @@ class GPForecastingModel:
         self.area_id: str = None
         self.data: pd.Series = None
         self.probit_data: pd.Series = None
-        self.group_scenario: pd.Series = None
+        self.regional_scenario: pd.Series = None
         self.training_data: tuple[np.ndarray, np.ndarray] = None
         self.testing_data: tuple[np.ndarray, np.ndarray] = None
         self.t_0: int = None
@@ -39,15 +43,15 @@ class GPForecastingModel:
         self.t_f: int = None
         pass
     
-    # Core Methods
+    # === Core Methods ===
 
-    def load_data(self, data: pd.Series, area_id: str, group_data: pd.Series, future_group_data: dict):
+    def load_data(self, data: pd.Series, area_id: str, regional_data: pd.Series, future_regional_data: dict):
         self.area_id = area_id
         self.data = data.copy()
         masked = self._mask_zeros(self.data)
         self.probit_data = masked.apply(probit)
-        self.group_scenario = self._create_group_scenario(group_data, future_group_data)
-        self.t_0 = self.group_scenario.index[0]
+        self.regional_scenario = self._create_regional_scenario(regional_data, future_regional_data)
+        self.t_0 = self.regional_scenario.index[0]
         self.mean_function = self._prepare_mean_function()
         
     def prepare_train_test_data(self, t_dict: dict):
@@ -150,19 +154,19 @@ class GPForecastingModel:
         plt.legend()
         plt.show()
 
-    # Convenience Functions
+    # === Internal Helper Methods === 
 
-    def _create_group_scenario(self, group_data: pd.Series, future_group_data: dict) -> pd.Series:
-        return pd.concat([group_data, pd.Series(future_group_data)])
+    def _create_regional_scenario(self, regional_data: pd.Series, future_regional_data: dict) -> pd.Series:
+        return pd.concat([regional_data, pd.Series(future_regional_data)])
     
     def _prepare_mean_function(self):
-        self.spl = self._fit_spline(self.group_scenario)
+        self.spl = self._fit_spline(self.regional_scenario)
         self.mean_function = CustomMeanFunction(mean_function=self.spl)
         return self.mean_function
 
-    def _fit_spline(self, group_scenario: pd.Series) -> Spline:
-        x = group_scenario.index - self.t_0
-        y = group_scenario.values
+    def _fit_spline(self, regional_scenario: pd.Series) -> Spline:
+        x = regional_scenario.index - self.t_0
+        y = regional_scenario.values
         spl = Spline(x, y)
         spl.fit_spline()
         return spl
@@ -203,3 +207,46 @@ class GPForecastingModel:
             Y_test = training_data.values[-h_f:]
             Y_test[np.isnan(Y_test)] = probit(0)
         return X_test.reshape(-1, 1), Y_test.reshape(-1, 1)
+
+class JointGPForecaster:
+    def __init__(self, GPForecastingModelClass, region, region_neighbourhood_dict, region_evms_df, t_dict, future_regional_data, kernel_prior, likelihood_prior):
+        self.region = region
+        self.t_dict = t_dict
+        self.future_regional_data = future_regional_data
+        self.region_neighbourhood_dict = region_neighbourhood_dict
+        self.region_evms_df = region_evms_df
+        self.GPForecastingModelClass = GPForecastingModelClass
+        self.models = []
+
+        # Create shared kernel and likelihood
+        self.kernel = kernel_prior
+        self.likelihood = likelihood_prior
+
+        self._build_models()
+
+    def _build_models(self):
+        """Builds and stores forecasting models for each neighbourhood using shared kernel and likelihood."""
+        data = self.region_neighbourhood_dict[self.region]['ev_ms']
+        data = data.loc[:, data.notna().any()]
+        regional_data = self.region_evms_df[self.region]
+
+        for neighbourhood_idx in tqdm(data.columns, desc=f'Processing neighbouroods in {self.region}'):
+            model = self.GPForecastingModelClass()
+            model.load_data(data[neighbourhood_idx], neighbourhood_idx, regional_data, self.future_regional_data)
+            model.prepare_train_test_data(t_dict=self.t_dict)
+            model.build_gp_model(kernel=self.kernel, likelihood=self.likelihood)
+            self.models.append(model)
+
+    def joint_training_loss(self):
+        """Computes joint training loss: sum of log-likelihoods + shared prior."""
+        log_likelihood_sum = tf.reduce_sum([
+            model.gp_model.maximum_log_likelihood_objective() for model in self.models
+        ])
+        log_prior = self.models[0].gp_model.log_prior_density()
+        return -(log_likelihood_sum + log_prior)
+
+    def train(self):
+        """Minimises the joint loss function using the defult Scipy optimiser."""
+        trainable_variables = self.kernel.trainable_variables + self.likelihood.trainable_variables
+        opt = gpflow.optimizers.Scipy()
+        opt.minimize(self.joint_training_loss, trainable_variables)
