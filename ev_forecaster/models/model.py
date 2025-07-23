@@ -211,7 +211,7 @@ class GPForecastingModel:
         return X_test.reshape(-1, 1), Y_test.reshape(-1, 1)
 
 class JointGPForecaster:
-    def __init__(self, GPForecastingModelClass, region, region_neighbourhood_dict, region_evms_df, t_dict, future_regional_data, kernel_prior, likelihood_prior):
+    def __init__(self, GPForecastingModelClass, region, region_neighbourhood_dict, region_evms_df, t_dict, future_regional_data: dict | None, kernel_prior, likelihood_prior):
         self.region = region
         self.t_dict = t_dict
         self.future_regional_data = future_regional_data
