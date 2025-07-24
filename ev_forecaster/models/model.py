@@ -18,6 +18,9 @@ sns.set_context("paper")
 # Progress Bars
 from tqdm.notebook import tqdm
 
+# Parallel Processing
+from joblib import Parallel, delayed
+
 # Gaussian Processes
 import gpflow
 import tensorflow as tf
@@ -252,3 +255,29 @@ class JointGPForecaster:
         trainable_variables = self.kernel.trainable_variables + self.likelihood.trainable_variables
         opt = gpflow.optimizers.Scipy()
         opt.minimize(self.joint_training_loss, trainable_variables)
+
+    def run_forecasts(self, t_dict: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Runs forecasts for all models in this Joint Forecaster for the specified time horizon.
+        Returns two DataFrames: forecast means and forecast variances.
+        """
+        idxs = [model.area_id for model in self.models]
+        
+        if t_dict['t_f'] - t_dict['t_n'] == 0:
+            X_new = np.arange(t_dict['t_n'], t_dict['t_f'] + 1)[:, None].astype(np.float64)
+            index = np.arange(t_dict['t_n'], t_dict['t_f'] + 1)
+        else:
+            X_new = np.arange(t_dict['t_n'] + 1, t_dict['t_f'] + 1)[:, None].astype(np.float64)
+            index = np.arange(t_dict['t_n'] + 1, t_dict['t_f'] + 1)
+
+        results = Parallel(n_jobs=-1)(
+            delayed(lambda model, idx: (idx, *model.make_forecast(X_new)))(self.models[i], idx) for i, idx in enumerate(idxs)
+        )
+
+        forecast_mean_df = pd.DataFrame(index=index, columns=idxs)
+        forecast_var_df = pd.DataFrame(index=index, columns=idxs)
+        for idx, forecast_mean, forecast_var in results:
+            forecast_mean_df[idx] = forecast_mean
+            forecast_var_df[idx] = forecast_var
+
+        return forecast_mean_df, forecast_var_df
