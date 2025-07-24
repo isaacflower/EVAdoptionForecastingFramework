@@ -281,3 +281,29 @@ class JointGPForecaster:
             forecast_var_df[idx] = forecast_var
 
         return forecast_mean_df, forecast_var_df
+    
+    def generate_forecast_samples(self, t_dict: dict, n_samples: int = 1000, seed: int = 42) -> dict:
+        # Set random seeds
+        np.random.seed(seed)
+        tf.random.set_seed(seed)
+
+        # Construct forecast inputs
+        if t_dict['t_f'] -  t_dict['t_n'] == 0:
+            X_new = np.arange(t_dict['t_n'] - t_dict['t_0'], t_dict['t_f'] - t_dict['t_0'] + 1)[:, None].astype(np.float64)
+        else:
+            X_new = np.arange(t_dict['t_n'] - t_dict['t_0'] + 1, t_dict['t_f'] - t_dict['t_0'] + 1)[:, None].astype(np.float64)
+
+        forecast_samples = {}
+
+        for model in tqdm(self.models):
+            # Predict latent function samples
+            f_samples = model.gp_model.predict_f_samples(X_new, n_samples)
+
+            # Add observation noise
+            noise_std = np.sqrt(model.gp_model.likelihood.variance.numpy())
+            y_samples = f_samples + np.random.normal(0, noise_std, size=f_samples.shape)
+
+            # Inverse probit transform and store
+            forecast_samples[model.area_id] = invprobit(y_samples[:, :, 0])  # Shape: [timesteps, n_samples]
+
+        return forecast_samples
