@@ -97,7 +97,7 @@ class GPForecastingModel:
             raise ValueError("GP Model not built. Please call build_gp_model() first.")
         
         y_mean, y_var = self.gp_model.predict_y(X_new) # Using y instead of f to include observation noise
-        return y_mean.numpy(), y_var.numpy()
+        return y_mean.numpy().flatten(), y_var.numpy().flatten()
     
     def generate_sample_forecasts(self, X_new: np.ndarray, num_samples: int = 10) -> np.ndarray:
         X_new = X_new.astype(np.float64)  # Ensure float64
@@ -139,7 +139,7 @@ class GPForecastingModel:
             plt.plot(X_plot[:-(self.t_f - self.t_n)], f_mean[:-(self.t_f - self.t_n)], "-", color="C0", label="GP Mean (Historical)")
         plt.plot(X_plot, mean_function, color='grey', linestyle="--", label="Mean Function", zorder=10)
 
-        plt.fill_between(X_plot[:, 0], f_lower[:, 0], f_upper[:, 0], color="C0", alpha=0.2, label="95% CI")
+        plt.fill_between(X_plot[:, 0], f_lower, f_upper, color="C0", alpha=0.2, label="95% CI")
         
         plt.xlim(X_plot[0], X_plot[-1])
         plt.xlabel('Year')
