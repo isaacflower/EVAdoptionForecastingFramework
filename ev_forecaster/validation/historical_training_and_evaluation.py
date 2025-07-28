@@ -107,40 +107,50 @@ class GPForecastValidator():
         self.forecasters_dict = forecasters_dict
         self.models_dict = models_dict
         return models_dict
-
-    def extract_forecast_means_and_samples(self):
+    
+    def extract_forecast_means_variance_and_samples(self):
         """
-        Generate forecast means and samples for multiple forecast start points (t_n values).
+        Generate forecast means, variances, and samples for multiple forecast start points (t_n values).
 
+        Returns:
+            mean_dict: { t_n : { region : pd.DataFrame of forecast means } }
+            var_dict:  { t_n : { region : pd.DataFrame of forecast variances } }
+            samples_dict: { t_n : { region : dict of forecast samples per LSOA } }
         """
         mean_dict = {}
+        var_dict = {}
         samples_dict = {}
 
         for t_n in tqdm(self.t_n_range, desc="Forecasting across t_n"):
             mean_dict_t_n = {}
+            var_dict_t_n = {}
             samples_dict_t_n = {}
 
-            t_dict = {'t_0': 2011, 't_n': t_n, 't_f': 2023}
+            t_dict = {'t_0': self.t_0, 't_n': t_n, 't_f': self.t_f}
 
-            for lad, forecaster in tqdm(self.forecasters_dict[t_n].items(), desc=f"Processing t_n={t_n}"):
-                data = self.region_neighbourhood_dict[lad]['ev_ms']
+            for region, forecaster in tqdm(self.forecasters_dict[t_n].items(), desc=f"Processing t_n={t_n}"):
+                data = self.region_neighbourhood_dict[region]['ev_ms']
                 data = data.loc[:, data.notna().any()]
 
-                # Compute forecasts
+                # Compute forecasts (mean & variance)
                 mean_df, var_df = forecaster.run_forecasts(t_dict)
-                mean_dict_t_n[lad] = mean_df
+                mean_dict_t_n[region] = mean_df
+                var_dict_t_n[region] = var_df
 
                 # Generate samples
-                samples_dict_t_n[lad] = forecaster.generate_forecast_samples(t_dict)
+                samples_dict_t_n[region] = forecaster.generate_forecast_samples(t_dict)
 
             # Store results for this t_n
             mean_dict[t_n] = mean_dict_t_n
+            var_dict[t_n] = var_dict_t_n
             samples_dict[t_n] = samples_dict_t_n
-        
+
+        # Save internally for later use
         self.mean_dict = mean_dict
+        self.var_dict = var_dict
         self.samples_dict = samples_dict
 
-        return mean_dict, samples_dict
+        return mean_dict, var_dict, samples_dict
     
     def calculate_error_metrics(self) -> dict:
         em_dict = {}
