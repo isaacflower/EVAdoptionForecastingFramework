@@ -189,8 +189,10 @@ class GPForecastingModel:
             X_train = training_data.index.values - t_0
             Y_train = training_data.values
         else:
-            X_train = training_data.index.values[:-h_f] - t_0
-            Y_train = training_data.values[:-h_f]
+            # X_train = training_data.index.values[:-h_f] - t_0
+            # Y_train = training_data.values[:-h_f]
+            X_train = training_data.loc[t_0:self.t_n+1].index.values - t_0
+            Y_train = training_data.loc[t_0:self.t_n+1].values
         
         len_X_train_raw = len(X_train)
         
@@ -208,8 +210,10 @@ class GPForecastingModel:
             X_test = np.array([])
             Y_test = np.array([])
         else:
-            X_test = training_data.index.values[-h_f:] - t_0
-            Y_test = training_data.values[-h_f:]
+            # X_test = training_data.index.values[-h_f:] - t_0
+            # Y_test = training_data.values[-h_f:]
+            X_test = training_data.loc[self.t_n:].index.values - t_0
+            Y_test = training_data.loc[self.t_n:].values
             Y_test[np.isnan(Y_test)] = probit(0)
         return X_test.reshape(-1, 1), Y_test.reshape(-1, 1)
 
