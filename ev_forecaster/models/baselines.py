@@ -10,7 +10,7 @@ rng = np.random.default_rng(seed)
 # Plotting
 import matplotlib.pyplot as plt
 import seaborn as sns
-sns.set_style('white')
+sns.set_style('ticks')
 sns.set_context("paper")
 
 # For Logistic Growth Model
