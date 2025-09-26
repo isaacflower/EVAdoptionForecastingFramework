@@ -1,13 +1,13 @@
 from ev_forecaster.models.model import GPForecastingModel, JointGPForecaster
 from ev_forecaster.model_utils.transforms import invprobit
 
-# Defining multiple variable types
-from typing import Union
-Numeric = Union[float, int, np.ndarray, pd.Series]
-
 # Data
 import pandas as pd
 import numpy as np
+
+# Defining multiple variable types
+from typing import Union
+Numeric = Union[float, int, np.ndarray, pd.Series]
 
 # Gaussian Processes
 import gpflow
