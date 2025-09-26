@@ -58,7 +58,6 @@ class GPForecastValidator():
         Trains JointGPForecaster models for multiple regions and historical horizons.
 
         Returns:
-            forecasters_dict: { forecast_start_year :  region_name : JointGPForecaster instance }}
             models_dict: { forecast_start_year : { region_name : list[GPForecastingModel] instance } }
         """
 
