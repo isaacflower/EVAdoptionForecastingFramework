@@ -152,6 +152,12 @@ class GPForecastValidator():
         return mean_dict, var_dict, samples_dict
     
     def calculate_error_metrics(self) -> dict:
+        """
+        Calculates and returns a dictionary containing error metrics (MAE, ME, nMAE, nME).
+
+        Returns:
+            em_dict: { t_n : { t_f : pd.DataFrame of error metrics } }
+        """
         em_dict = {}
         for t_n in tqdm(self.t_n_range, desc="Iterating over forecast starting points"):
             t_dict = {'t_0': self.t_0, 't_n': t_n, 't_f': self.t_f}
