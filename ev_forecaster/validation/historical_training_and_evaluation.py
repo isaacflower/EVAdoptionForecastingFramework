@@ -16,6 +16,7 @@ import tensorflow_probability as tfp
 gpflow.config.set_default_float(np.float64)
 gpflow.config.set_default_summary_fmt("notebook")
 f64 = gpflow.utilities.to_default_float # convert to float64 for tfp to play nicely with gpflow
+dtype = gpflow.config.default_float()
 
 # Progress Bars
 from tqdm.notebook import tqdm
@@ -78,11 +79,11 @@ class GPForecastValidator():
 
                 # Define shared kernel & likelihood for this region and horizon
                 kernel = gpflow.kernels.RBF(
-                    lengthscales=gpflow.Parameter(f64(10.0), prior=tfp.distributions.Gamma(f64(10.0), f64(1.0)), transform=tfp.bijectors.Softplus()),
-                    variance=gpflow.Parameter(f64(0.3), prior=tfp.distributions.Gamma(f64(3.0), f64(10.0)), transform=tfp.bijectors.Softplus())
+                    lengthscales=gpflow.Parameter(f64(10.0), prior=tfp.distributions.Gamma(f64(10.0), f64(1.0)), transform=tfp.bijectors.Softplus(), dtype=dtype),
+                    variance=gpflow.Parameter(f64(0.3), prior=tfp.distributions.Gamma(f64(3.0), f64(10.0)), transform=tfp.bijectors.Softplus(), dtype=dtype)
                 )
                 likelihood = gpflow.likelihoods.Gaussian(
-                    variance=gpflow.Parameter(f64(0.02), prior=tfp.distributions.Gamma(f64(2.0), f64(100.0)), transform=tfp.bijectors.Softplus())
+                    variance=gpflow.Parameter(f64(0.02), prior=tfp.distributions.Gamma(f64(2.0), f64(100.0)), transform=tfp.bijectors.Softplus(), dtype=dtype)
                 )
 
                 # Build and train using JointGPForecaster
