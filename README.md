@@ -67,6 +67,11 @@ To constrain the GP's outputs between 0 and 1, a probit transformation is applie
 
 The `main.ipynb` notebook contains the code used for the paper: **"*A probabilistic forecasting framework for neighbourhood-level disaggregation of electric vehicle adoption scenarios.*"**, available at: (doi pending). This provides example usage of the forecasting framework.
 
+## Dependencies
+Dependencies are included in the `requirements.txt` file.
+
+Note that `tensorflow-probability` should be set to version **0.24** to allow it to work with `tensorflow` and `gpflow`.
+
 ## Core Framework
 
 ### data_processing.py
@@ -112,8 +117,3 @@ This module contains a number of classes relevant to baseline forecasting models
 
 ### historical_training_and_evaluation.py
 This module contains the `GPForecastValidator` class that is used to automate the training and evaluation fo multiple `JointGPForecaster` instances.
-
-## Dependencies
-Dependencies are included in the `requirements.txt` file.
-
-Note that `tensorflow-probability` should be set to version **0.24** to allow it to work with `tensorflow` and `gpflow`.
