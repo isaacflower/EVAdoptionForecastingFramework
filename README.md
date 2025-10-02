@@ -7,6 +7,7 @@
   - [Mean Function](#mean-function)
   - [Training data and probit transform](#training-data-and-probit-transform)
 - [Running the Code](#running-the-code)
+  - [Dependencies](#dependencies)
   - [Core Framework](#core-framework)
     - [data_processing.py](#data_processingpy)
     - [model.py](#modelpy)
@@ -15,7 +16,6 @@
   - [Baselines and Validation](#baselines-and-validation)
     - [baselines.py](#baselinespy)
     - [historical_training_and_evaluation.py](#historical_training_and_evaluationpy)
-- [Dependencies](#dependencies)
 
 # EV Adoption Forecasting Framework
 
