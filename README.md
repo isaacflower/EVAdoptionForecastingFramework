@@ -15,7 +15,14 @@ The framework has three key inputs: (i) Neighbourhood-level EV registration data
 
 The framework describes EV adoption using the proportion of registered vehicles that are EVs, referred to as *EV market share* **(EVMS)**, which is defined on the interval *[0, 1]*. 
 
-Details of the datasets used for applying the framework to LSOAs and LADs in England and Wales, along with the data preprocessing steps undertaken, are provided...
+Vehicle registration datasets used for Lower Layer Super Output Areas (LSOAs) and Local Authority Districts (LADs) in England and Wales are summarise in the table below:
+
+| Name            | Geography | Vehicle Type       | Date Range        |
+|-----------------|-----------|--------------------|-------------------|
+| [VEH0105](https://www.gov.uk/government/statistical-data-sets/vehicle-licensing-statistics-data-tables)         | LAD       | All vehicles       | 2009 Q4 - 2023 Q4 |
+| [VEH0142](https://www.gov.uk/government/statistical-data-sets/vehicle-licensing-statistics-data-tables)         | LAD       | BEVs and PHEVs     | 2009 Q4 - 2023 Q4 |
+| [VEH0125](https://www.gov.uk/government/statistical-data-sets/vehicle-licensing-statistics-data-files)         | LSOA      | All vehicles       | 2011 Q1 - 2023 Q4 |
+| [VEH0145](https://www.gov.uk/government/statistical-data-sets/vehicle-licensing-statistics-data-files)        | LSOA      | BEVs and PHEVs     | 2011 Q1 - 2023 Q4 |
 
 The specific choice of hyperparameter priors...
 
@@ -44,7 +51,7 @@ To constrain the GP's outputs between 0 and 1, a probit transformation is applie
 This module contains two data processing classes specifically for UK vehicle registration data for Lower Layer Super Output Areas (LSOAs) and Local Authority Districts (LADs): `LSOAVehicleRegistrationDataProcessor` and `LADVehicleRegistrationDataProcessor`. These classes contain methods to load, filter and process the raw data into usable pandas DataFrames.
 
 ### model.py
-This model defines the `GPForecastingModel` and `JointGPForecaster` classes.
+This model defines the `GPForecastingModel` and `JointGPForecaster` classes. The framework uses GP models that are constructed with the [GPFlow](https://github.com/GPflow/GPflow) package.
 
 The `GPForecastingModel` class is a building block for the forecasting framework. An instance of a GP forecasting model will be created for each neighbourhood. Below are the steps of using this model class:
 - **Loading data**: Data for a particular neighbourhood and it's corresponding region, as well as a future regional scenario are first given to the model through the `load_data()` method. 
@@ -52,7 +59,9 @@ The `GPForecastingModel` class is a building block for the forecasting framework
 - **Building the GP model**: To build the GP model, the user then must provide kernel and likelihood priors via the `build_gp_model()` method that will combine these with the training data into a single `gpflow.models.GPR` object.
 - **Making a forecast**: The `make_forecast()` method uses the trained GP model to make predictions at future years.
 - **Drawing forecast samples from the GP**: The `generate_sample_forecasts()` method allows users to draw sample forecasts from the trained GP.
-- **Plot forecast**: The `plot_forecast()` method allows users to visualise the forecast and the prediction intervals that represent forecast uncertainty.
+- **Plot forecast**: The `plot_forecast()` method allows users to visualise the forecast and the prediction intervals that represent forecast uncertainty. Below is an example forecast plot.
+
+![Example forecast plot](./figures/example_forecast.png "Example forecast plot")
 
 The `JointGPForecaster` class enables the joint training of multiple `GPForecastingModel` instances. This is useful if you want to make forecasts for all neighbourhoods within a particular region.
 - **Initialisation**: When creating an instance of the `JointGPForecaster` class, the forecasting model class (`GPForecastingModel`), region, data, scenarios and priors are all specified.
@@ -61,10 +70,12 @@ The `JointGPForecaster` class enables the joint training of multiple `GPForecast
 - **Drawing forecast samples**: Samples are drawn from the collection of GP models using the `generate_forecast_samples()` method.
 
 ### mean_function.py
-This module defines a `Spline` and `CustomMeanFunction` class.
+This module defines a `Spline` and `CustomMeanFunction` class. To create a custom mean function from discrete data points, a spline is fitted to the regional EV adoption scenario.
 
 ### transforms.py
-This module defines the `probit()` and `invprobit()` functions used to transform the data.
+This module defines the `probit()` and `invprobit()` functions used to transform the data. The figure below shows how the probit transform affects the spline-fitted mean function. This converts the regional scenario into a smooth function which can then be used as a custom mean function in a `gpflow.models.GPR` object.
+
+![Example transformed mean function](./figures/example_transformed_mean_function.png "Example transformed mean function")
 
 ## Baselines and validation
 The following modules were developed for the purposes of benchmarking and evaluating the frameworks historical forecasting performance.
