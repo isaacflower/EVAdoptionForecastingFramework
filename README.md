@@ -1,5 +1,5 @@
-# EV Adoption Forecasting Framework
-## Table of Contents
+# Table of Contents
+- [EV Adoption Forecasting Framework](#ev-adoption-forecasting-framework)
 - [Framework Overview](#framework-overview)
 - [Inputs](#inputs)
 - [Model Components](#model-components)
@@ -16,6 +16,8 @@
     - [baselines.py](#baselinespy)
     - [historical_training_and_evaluation.py](#historicaltrainingandevaluationpy)
 - [Dependencies](#dependencies)
+
+# EV Adoption Forecasting Framework
 
 The **EV Adoption Forecast Framework** allows users to generate probablistic neighbourhood-level forecasts of electric vehicle (EV) adoption, within some larger region. 
 
