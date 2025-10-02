@@ -65,7 +65,7 @@ To constrain the GP's outputs between 0 and 1, a probit transformation is applie
 
 # Running the Code
 
-The `main.ipynb` notebook contains the code used for the paper: **"*A probabilistic forecasting framework for neighbourhood-level disaggregation of electric vehicle adoption scenarios.*"**. The paper is available at: (doi pending).
+The `main.ipynb` notebook contains the code used for the paper: **"*A probabilistic forecasting framework for neighbourhood-level disaggregation of electric vehicle adoption scenarios.*"**, available at: (doi pending). This provides example usage of the forecasting framework.
 
 ## Core Framework
 
