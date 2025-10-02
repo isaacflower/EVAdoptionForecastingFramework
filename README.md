@@ -44,7 +44,6 @@ Vehicle registration datasets used for Lower Layer Super Output Areas (LSOAs) an
 | [VEH0125](https://www.gov.uk/government/statistical-data-sets/vehicle-licensing-statistics-data-files)         | LSOA      | All vehicles       | 2011 Q1 - 2023 Q4 |
 | [VEH0145](https://www.gov.uk/government/statistical-data-sets/vehicle-licensing-statistics-data-files)        | LSOA      | BEVs and PHEVs     | 2011 Q1 - 2023 Q4 |
 
-The specific choice of hyperparameter priors...
 
 ### Model Components
 GPs sit at the core of the framework, allowing for principled integration of spatially granular EV adoption data (as training data) and regional scenarios (as the mean function). Assumptions about future EV adoption dynamics are embedded in the GP kernel hyperparameters. There are three main components to a GP model:
