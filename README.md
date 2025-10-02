@@ -88,7 +88,7 @@ The `GPForecastingModel` class is a building block for the forecasting framework
 - **Drawing forecast samples from the GP**: The `generate_sample_forecasts()` method allows users to draw sample forecasts from the trained GP.
 - **Plot forecast**: The `plot_forecast()` method allows users to visualise the forecast and the prediction intervals that represent forecast uncertainty. Below is an example forecast plot.
 
-![Example forecast plot](./figures/example_forecast.png "Example forecast plot")
+![Example forecast plot](./figures/example_forecast.png)
 
 The `JointGPForecaster` class enables the joint training of multiple `GPForecastingModel` instances. This is useful if you want to make forecasts for all neighbourhoods within a particular region.
 - **Initialisation**: When creating an instance of the `JointGPForecaster` class, the forecasting model class (`GPForecastingModel`), region, data, scenarios and priors are all specified.
