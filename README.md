@@ -1,4 +1,22 @@
 # EV Adoption Forecasting Framework
+## Table of Contents
+- [Framework Overview](#framework-overview)
+- [Inputs](#inputs)
+- [Model Components](#model-components)
+  - [Kernel](#kernel)
+  - [Mean Function](#mean-function)
+  - [Training data and probit transform](#training-data-and-probit-transform)
+- [Running the Code](#running-the-code)
+  - [Core Framework](#core-framework)
+    - [data_processing.py](#dataprocessingpy)
+    - [model.py](#modelpy)
+    - [mean_function.py](#meanfunctionpy)
+    - [transforms.py](#transformspy)
+  - [Baselines and Validation](#baselines-and-validation)
+    - [baselines.py](#baselinespy)
+    - [historical_training_and_evaluation.py](#historicaltrainingandevaluationpy)
+- [Dependencies](#dependencies)
+
 The **EV Adoption Forecast Framework** allows users to generate probablistic neighbourhood-level forecasts of electric vehicle (EV) adoption, within some larger region. 
 
 The framework used Gaussian processes (GPs) to predict how neighbourhood-level EV adoption will deviate from regional trends, based on historical observations. This enables scenario-consistent forecasts that account for local variability and potential uncertainty. It allows decision-makers to ask: 
@@ -75,7 +93,7 @@ This module defines a `Spline` and `CustomMeanFunction` class. To create a custo
 ### transforms.py
 This module defines the `probit()` and `invprobit()` functions used to transform the data. The figure below shows how the probit transform affects the spline-fitted mean function. This converts the regional scenario into a smooth function which can then be used as a custom mean function in a `gpflow.models.GPR` object.
 
-![Example transformed mean function](./figures/example_transformed_mean_function.png "Example transformed mean function")
+![Example transformed mean function](./figures/example_transformed_mean_function.png )
 
 ## Baselines and validation
 The following modules were developed for the purposes of benchmarking and evaluating the frameworks historical forecasting performance.
