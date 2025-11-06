@@ -355,7 +355,7 @@ class BaselineNMAEComparator():
         ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=len(models), fontsize=14)
         plt.tight_layout()
         if save_file_path is not None:
-            plt.savefig(save_file_path, bbox_inches="tight", pad_inches=0.2, dpi=300)
+            plt.savefig(save_file_path, bbox_inches="tight", pad_inches=0.2)
         plt.show()
 
     # === Internal Helper ===
