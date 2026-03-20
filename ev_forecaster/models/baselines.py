@@ -276,95 +276,123 @@ class BaselineNMAEComparator():
         pass
 
     # === Core Methods ===
-
-    def compute_bootstrap_results(self, nae_dict: dict, n_bootstraps: int = 1000) -> pd.DataFrame:
-        """Compute bootstrap mean and confidence intervals for each LAD at fixed horizon h_f."""
-        results = {'Metric': [f'nMAE', 'Lower CI', 'Upper CI']}
+    
+    def compute_bootstrap_results(self, nae_dict: dict, n_bootstraps: int = 1000) -> tuple[pd.DataFrame, dict]: # NEW
+        """Compute bootstrap mean, CI and store bootstrap samples."""
+        results = {'Metric': ['nMAE', 'Lower CI', 'Upper CI']}
+        bootstrap_samples = {}
 
         for i in self.iter_array:
             nae_values = nae_dict[i]
-            mean_nmae, lower, upper = self._bootstrap_ci(nae_values, n_bootstraps=n_bootstraps)
+            mean_nmae, lower, upper, boot_means = self._bootstrap_ci(nae_values, n_bootstraps=n_bootstraps)
             results[i] = [mean_nmae, lower, upper]
+            bootstrap_samples[i] = boot_means
 
-        return pd.DataFrame(results).set_index('Metric')
-
-    def gather_model_results(self, model_results: pd.DataFrame, model_name: str) -> pd.DataFrame:
+        results_df = pd.DataFrame(results).set_index('Metric')
+        return results_df, bootstrap_samples
+    
+    def gather_model_results(self, model_results: pd.DataFrame, bootstrap_samples: dict, model_name: str) -> pd.DataFrame: # NEW
         """Convert results into long-form DataFrame for combined plotting."""
         means = model_results.loc['nMAE']
         lower = model_results.loc['Lower CI']
         upper = model_results.loc['Upper CI']
-        
+
         df = pd.DataFrame({
             'Horizon': means.index,
             'Model': model_name,
             'nMAE': means.values,
             'Lower CI': lower.values,
-            'Upper CI': upper.values
+            'Upper CI': upper.values,
+            'Bootstrap': [bootstrap_samples[h] for h in means.index]
         })
 
         df['yerr_lower'] = df['nMAE'] - df['Lower CI']
         df['yerr_upper'] = df['Upper CI'] - df['nMAE']
-        
+
         return df
 
-    def plot_combined_nmae(self, df: pd.DataFrame, save_file_path:str = None):
-        """Plot grouped bar chart with CIs from combined DataFrame."""
-        bar_width = 0.15
+    def plot_combined_nmae_boxplot(self, df: pd.DataFrame, figsize: tuple = (10, 10), save_file_path: str = None):
+        """Plot grouped boxplots using bootstrap mean distributions."""
+
+        bar_width = 0.1
         h_f_array = np.arange(1, 6)
         models = df['Model'].unique()
         x = np.arange(len(h_f_array))
 
         cmap = plt.colormaps.get_cmap('Blues')
 
-        fig, ax = plt.subplots(figsize=(len(models)*2.5, 5))
+        fig, ax = plt.subplots(figsize=figsize)
 
-        # Plot each model as a separate bar group
         for j, model in enumerate(models):
+
             df_model = df[df['Model'] == model].sort_values('Horizon')
-            means = df_model['nMAE'].values
-            yerr_lower = df_model['yerr_lower'].values
-            yerr_upper = df_model['yerr_upper'].values
-            yerr = np.vstack([yerr_lower, yerr_upper])
+
+            # Each entry is an array of bootstrap means
+            bootstrap_data = df_model['Bootstrap'].values
+
+            positions = x + j * bar_width
 
             if model == 'GP':
                 color = 'deeppink'
             else:
                 color = cmap((j+0.5) / (len(models)))
 
-            ax.bar(
-                x + j * bar_width,
-                means,
-                width=bar_width,
-                label=model,
-                yerr=yerr,
-                capsize=3,
-                color=color,
-                alpha=0.8
+            bp = ax.boxplot(
+                bootstrap_data,
+                positions=positions,
+                widths=bar_width,
+                patch_artist=True,
+                showfliers=False,
+                whis=(2.5, 97.5),
+                medianprops=dict(color="black", linewidth=1.5)
             )
 
-        # Axis and formatting
+            # Style boxes
+            for box in bp['boxes']:
+                box.set(facecolor=color, alpha=0.7)
+
+            for median in bp['medians']:
+                median.set(color='black', linewidth=1.5)
+
+        # Axis formatting
         ax.set_xticks(x + bar_width * (len(models) - 1) / 2)
         ax.set_xticklabels(h_f_array)
+
         ax.set_xlabel('$h_f$', fontsize=16, labelpad=5)
         ax.set_ylabel('nMAE', fontsize=16, labelpad=5)
-        ax.tick_params(labelsize=14)
-        ax.grid(axis='y', linestyle='--', alpha=0.7)
-        ax.set_ylim(bottom=0)
 
-        # Legend and layout
-        ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=len(models), fontsize=14)
+        ax.tick_params(labelsize=14)
+        ax.grid(axis='both', linestyle='--', alpha=0.7)
+        ax.set_ylim(bottom=0.2, top=0.7)
+
+        # Manual legend
+        handles = []
+        for j, model in enumerate(models):
+            if model == 'GP':
+                color = 'deeppink'
+            else:
+                color = cmap((j+0.5) / (len(models)))
+            handles.append(plt.Rectangle((0,0),1,1, color=color, alpha=0.7))
+
+        ax.legend(handles, models, loc='upper center',
+                bbox_to_anchor=(0.5, 1.07),
+                ncol=len(models),
+                fontsize=14)
+
         plt.tight_layout()
+
         if save_file_path is not None:
             plt.savefig(save_file_path, bbox_inches="tight", pad_inches=0.2)
+
         plt.show()
 
     # === Internal Helper ===
-
-    def _bootstrap_ci(self, data: pd.Series, n_bootstraps: int = 1000, ci: float = 95) -> tuple[float, float, float]:
-        """Return mean and CI bounds for bootstrap resampled data."""
-        boot_means = [np.mean(resample(data)) for _ in range(n_bootstraps)]
+    
+    def _bootstrap_ci(self, data: pd.Series, n_bootstraps: int = 1000, ci: float = 95) -> tuple[float, float, float, np.ndarray]: # NEW
+        """Return mean, CI bounds, and bootstrap means from resampled data."""
+        boot_means = np.array([np.mean(resample(data)) for _ in range(n_bootstraps)])
         lower, upper = np.percentile(boot_means, [(100 - ci) / 2, 100 - (100 - ci) / 2])
-        return np.mean(data), lower, upper
+        return np.mean(data), lower, upper, boot_means
 
 # === Baseline Models ===
 
